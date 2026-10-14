@@ -2,15 +2,20 @@ import SwiftUI
 
 struct ShareBar: View {
     let fraction: Double
+    /// Drawn even at 0% so model rows keep a visible sliver. Pool bars pass 0.
+    var minimumFill: CGFloat = 4
 
     var body: some View {
         GeometryReader { geo in
+            let width = max(minimumFill, geo.size.width * CGFloat(min(max(fraction, 0), 1)))
             ZStack(alignment: .leading) {
                 Capsule()
                     .fill(Color.accentColor.opacity(0.25))
-                Capsule()
-                    .fill(Color.accentColor.opacity(0.8))
-                    .frame(width: max(4, geo.size.width * CGFloat(min(max(fraction, 0), 1))))
+                if width > 0 {
+                    Capsule()
+                        .fill(Color.accentColor.opacity(0.8))
+                        .frame(width: width)
+                }
             }
         }
         .frame(height: 4)

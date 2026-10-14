@@ -33,11 +33,23 @@ chats, and whether you're in the middle of a spike.
 
 ## Install
 
-Download the latest `Burnrate-*.zip` from
-[Releases](https://github.com/tomyweiss/Burnrate/releases), unzip, and move
-`Burnrate.app` to `/Applications`.
+Latest release, no Xcode. This downloads the current `Burnrate-*.zip` from
+[Releases](https://github.com/tomyweiss/Burnrate/releases), installs
+`Burnrate.app` to `/Applications`, and opens it:
 
-Or build from source:
+```bash
+curl -fsSL https://api.github.com/repos/tomyweiss/Burnrate/releases/latest \
+  | grep -o 'https://github.com/tomyweiss/Burnrate/releases/download/[^"]*Burnrate-[^"]*\.zip' \
+  | head -1 \
+  | xargs curl -fL -o Burnrate.zip
+unzip -o Burnrate.zip
+rm -rf /Applications/Burnrate.app
+mv Burnrate.app /Applications/
+open /Applications/Burnrate.app
+```
+
+Or build from a clone of `main`. This compiles a release binary, installs
+`Burnrate.app` to `/Applications`, and launches it:
 
 ```bash
 git clone https://github.com/tomyweiss/Burnrate.git
@@ -45,7 +57,12 @@ cd Burnrate
 bash scripts/package.sh --install --open
 ```
 
-This builds a release binary, installs `Burnrate.app` to `/Applications`, and launches it.
+Side-by-side contributor build. This installs `Burnrate-dev.app` and does not
+replace `/Applications/Burnrate.app`:
+
+```bash
+bash scripts/package.sh --dev --install --open
+```
 
 > [!NOTE]
 > **First launch:** the app isn't Apple-notarized. If Gatekeeper blocks it,

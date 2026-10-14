@@ -33,11 +33,11 @@ struct RootPanel: View {
     @Namespace private var glassNamespace
     @AppStorage("panelTab") private var panelTabRaw = UsageTab.models.rawValue
 
-    private let panelWidth: CGFloat = 460
+    private let panelWidth: CGFloat = 580
 
     /// The Bench scatter needs more vertical room than the list tabs.
     private var panelHeight: CGFloat {
-        route == .usage && panelTabRaw == UsageTab.bench.rawValue ? 720 : 580
+        route == .usage && panelTabRaw == UsageTab.bench.rawValue ? 860 : 740
     }
 
     var body: some View {

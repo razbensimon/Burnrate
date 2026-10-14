@@ -54,6 +54,19 @@ actor CursorAPI {
         return all
     }
 
+    /// Included-pool percentages and cycle dollar totals for the signed-in plan.
+    ///
+    /// Pools are nil when the account is unlimited or the payload has no pool
+    /// bars. Spend is nil when the payload has no on-demand or included cents.
+    /// Throws only when the request itself fails.
+    func fetchUsageCycle(credentials: SessionCredentials) async throws -> (pools: IncludedPools?, spend: CycleSpend?) {
+        let summary = try await getJSON(credentials: credentials, path: "/api/usage-summary")
+        return (
+            pools: IncludedPools.parse(json: summary),
+            spend: CycleSpend.parse(json: summary)
+        )
+    }
+
     /// Billing-cycle spend for the signed-in user.
     ///
     /// Request-based plans leave every per-event dollar field at zero, so these
