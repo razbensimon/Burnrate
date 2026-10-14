@@ -59,7 +59,12 @@ if [[ "$DRY_RUN" -eq 0 ]]; then
   git pull --ff-only origin main
 fi
 
-VERSION="$(compute_next_release_version)"
+if [[ -n "${VERSION:-}" ]]; then
+  VERSION="${VERSION#v}"
+  VERSION="${VERSION#V}"
+else
+  VERSION="$(compute_next_release_version)"
+fi
 TAG="v${VERSION}"
 HEAD_SHA="$(git rev-parse --short HEAD)"
 LATEST_TAG="$(previous_release_tag "$VERSION")"
