@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.0.59
+## 0.60.0
 
 - Show Cursor models and Other models included-pool usage, plus on-demand and included spend, as gauges in the header.
 - Widen the panel so the Community button stays on one line.
