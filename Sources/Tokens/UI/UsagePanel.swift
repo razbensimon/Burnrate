@@ -38,124 +38,187 @@ enum CostMetric: String, CaseIterable, Identifiable {
     }
 }
 
-/// Included-pool gauges and the cycle's on-demand / included dollar totals.
-/// Pool rings fill with the percent used. Dollar rings fill relative to
-/// whichever of the two amounts is larger, and the center shows the dollars.
-private struct IncludedPoolsGauges: View {
+/// Two columns: the included allowance pools as rings (percent of a fixed
+/// cap) on the left; on the right the cycle's spend as one stacked bar
+/// (included vs on-demand share of the total) with `timeline` filling the
+/// remaining height so both columns end level with the rings.
+/// Blue means covered by the plan; orange means paying.
+private struct IncludedPoolsGauges<Timeline: View>: View {
     /// Nil until Cursor reports the pools. The rings stay on screen either way.
     let pools: IncludedPools?
     /// Team spend when calibrated. Matches the cycle caption.
     let spendSummary: SpendSummary?
     /// usage-summary totals, used until team spend is available.
     let cycleSpend: CycleSpend?
+    /// Rendered under the spend legend; should be vertically flexible.
+    @ViewBuilder let timeline: () -> Timeline
+
+    private static var ringSize: CGFloat { 100 }
+    private static var ringWidth: CGFloat { 9 }
+    private static var includedTint: Color { .accentColor }
+    private static var onDemandTint: Color { .orange }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 0) {
-            percentGauge("Cursor models", percent: pools?.cursorModelsPercent)
-            Spacer(minLength: 20)
-            percentGauge("Other models", percent: pools?.otherModelsPercent)
-            Spacer(minLength: 20)
-            moneyGauge(
-                "On-demand",
-                cents: onDemandCents,
-                other: includedCents,
-                tint: Color.orange
-            )
-            Spacer(minLength: 20)
-            moneyGauge(
-                "Included",
-                cents: includedCents,
-                other: onDemandCents,
-                tint: Color.accentColor
-            )
+        HStack(alignment: .top, spacing: 24) {
+            allowanceCluster
+            spendCluster
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .frame(maxWidth: .infinity)
-        .help("Included pools, plus on-demand and included spend this billing cycle")
+        .fixedSize(horizontal: false, vertical: true)
     }
 
-    private var onDemandCents: Double? {
-        if let spendSummary { return spendSummary.onDemandCents }
-        return cycleSpend?.onDemandCents
-    }
+    // MARK: Allowance
 
-    private var includedCents: Double? {
-        if let spendSummary { return spendSummary.includedCents }
-        return cycleSpend?.includedCents
+    private var allowanceCluster: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            clusterHeader("Included allowance")
+
+            HStack(alignment: .top, spacing: 24) {
+                percentGauge("Cursor models", percent: pools?.cursorModelsPercent)
+                percentGauge("Other models", percent: pools?.otherModelsPercent)
+            }
+        }
+        .help("Share of each included pool used this billing cycle")
     }
 
     private func percentGauge(_ title: String, percent: Double?) -> some View {
         let shown = percent.map(IncludedPools.displayPercent)
-        let value = min(max(percent ?? 0, 0), 100) / 100
-        return ring(
-            title: title,
-            center: shown.map { "\($0)%" } ?? "—",
-            fill: percent == nil ? 0 : value,
-            tint: percentTint(percent),
-            accessibility: shown.map { "\(title), \($0) percent used" } ?? "\(title), not loaded"
-        )
-    }
+        let fill = percent == nil ? 0 : min(max(percent ?? 0, 0), 100) / 100
+        let tint = percentTint(percent)
 
-    private func moneyGauge(
-        _ title: String,
-        cents: Double?,
-        other: Double?,
-        tint: Color
-    ) -> some View {
-        let center = cents.map { MoneyFormat.dollars($0 / 100) } ?? "—"
-        return ring(
-            title: title,
-            center: center,
-            fill: moneyFill(cents: cents, other: other),
-            tint: cents == nil ? Color.secondary.opacity(0.45) : tint,
-            accessibility: cents.map { "\(title), \(MoneyFormat.dollars($0 / 100))" } ?? "\(title), not loaded"
-        )
-    }
-
-    /// The larger of the two dollar amounts fills its ring. The smaller one
-    /// fills in proportion, so the rings compare the two totals.
-    private func moneyFill(cents: Double?, other: Double?) -> Double {
-        guard let cents, cents > 0 else { return 0 }
-        let peak = max(cents, other ?? 0)
-        guard peak > 0 else { return 0 }
-        return min(cents / peak, 1)
-    }
-
-    private func ring(
-        title: String,
-        center: String,
-        fill: Double,
-        tint: Color,
-        accessibility: String
-    ) -> some View {
-        VStack(spacing: 8) {
+        return VStack(spacing: 6) {
             ZStack {
                 Circle()
-                    .stroke(Color.secondary.opacity(0.25), lineWidth: 9)
+                    .stroke(Color.secondary.opacity(0.25), lineWidth: Self.ringWidth)
                 Circle()
-                    .trim(from: 0, to: min(max(fill, 0), 1))
-                    .stroke(tint, style: StrokeStyle(lineWidth: 9, lineCap: .round))
+                    .trim(from: 0, to: fill)
+                    .stroke(tint, style: StrokeStyle(lineWidth: Self.ringWidth, lineCap: .round))
                     .rotationEffect(.degrees(-90))
-                Text(center)
-                    .font(.title3.weight(.semibold).monospacedDigit())
-                    .minimumScaleFactor(0.5)
-                    .lineLimit(1)
-                    .padding(.horizontal, 12)
+                VStack(spacing: 0) {
+                    Text(shown.map { "\($0)%" } ?? "—")
+                        .font(.title3.weight(.semibold).monospacedDigit())
+                        .minimumScaleFactor(0.6)
+                        .lineLimit(1)
+                    if shown != nil {
+                        Text("used")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.horizontal, 12)
             }
-            .frame(width: 108, height: 108)
+            .frame(width: Self.ringSize, height: Self.ringSize)
 
             Text(title)
-                .font(.subheadline)
+                .font(.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(accessibility)
+        .accessibilityLabel(shown.map { "\(title), \($0) percent used" } ?? "\(title), not loaded")
     }
 
+    /// Orange once the pool is exhausted, because usage past that point
+    /// flows into on-demand spend (also orange).
     private func percentTint(_ percent: Double?) -> Color {
         guard let percent else { return Color.secondary.opacity(0.45) }
-        return percent >= 100 ? Color.orange : Color.accentColor
+        return percent >= 100 ? Self.onDemandTint : Self.includedTint
+    }
+
+    // MARK: Spend
+
+    private var split: SpendSplit? {
+        if let spendSummary {
+            return SpendSplit(includedCents: spendSummary.includedCents, onDemandCents: spendSummary.onDemandCents)
+        }
+        if let cycleSpend {
+            return SpendSplit(includedCents: cycleSpend.includedCents, onDemandCents: cycleSpend.onDemandCents)
+        }
+        return nil
+    }
+
+    private var spendCluster: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .firstTextBaseline) {
+                    clusterHeader("Spend this cycle")
+                    Spacer(minLength: 8)
+                    Text(split.map { MoneyFormat.dollars($0.totalCents / 100) } ?? "—")
+                        .font(.subheadline.weight(.semibold).monospacedDigit())
+                        .lineLimit(1)
+                }
+
+                spendBar
+
+                HStack(spacing: 14) {
+                    legendItem("Included", cents: split?.includedCents, tint: Self.includedTint)
+                    legendItem("On-demand", cents: split?.onDemandCents, tint: Self.onDemandTint)
+                }
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(spendAccessibility)
+            .help("How this cycle's spend splits between the included allowance and on-demand")
+
+            timeline()
+                .frame(maxHeight: .infinity)
+        }
+    }
+
+    private var spendBar: some View {
+        GeometryReader { proxy in
+            let width = proxy.size.width
+            let included = width * (split?.includedFraction ?? 0)
+            let onDemand = width * (split?.onDemandFraction ?? 0)
+
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(Color.secondary.opacity(0.25))
+                HStack(spacing: included > 0 && onDemand > 0 ? 2 : 0) {
+                    if included > 0 {
+                        Rectangle().fill(Self.includedTint).frame(width: included)
+                    }
+                    if onDemand > 0 {
+                        Rectangle().fill(Self.onDemandTint).frame(width: onDemand)
+                    }
+                }
+                .clipShape(Capsule())
+            }
+        }
+        .frame(height: 10)
+    }
+
+    private func legendItem(_ title: String, cents: Double?, tint: Color) -> some View {
+        HStack(spacing: 5) {
+            Circle()
+                .fill(cents == nil ? Color.secondary.opacity(0.45) : tint)
+                .frame(width: 7, height: 7)
+            Text(title)
+                .foregroundStyle(.secondary)
+            Text(cents.map { MoneyFormat.dollars($0 / 100) } ?? "—")
+                .fontWeight(.medium)
+                .monospacedDigit()
+        }
+        .font(.caption)
+        .lineLimit(1)
+    }
+
+    private var spendAccessibility: String {
+        guard let split else { return "Spend this cycle, not loaded" }
+        let total = MoneyFormat.dollars(split.totalCents / 100)
+        let included = MoneyFormat.dollars(split.includedCents / 100)
+        let onDemand = MoneyFormat.dollars(split.onDemandCents / 100)
+        return "Spend this cycle \(total): \(included) included, \(onDemand) on-demand"
+    }
+
+    // MARK: Shared
+
+    private func clusterHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
     }
 }
 
@@ -231,7 +294,7 @@ struct UsagePanel: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
+            HStack(alignment: .center, spacing: 8) {
                 HStack(alignment: .center, spacing: 8) {
                     Text(MoneyFormat.dollars(store.snapshot.windowDollars))
                         .font(.system(size: 34, weight: .semibold, design: .rounded))
@@ -260,7 +323,7 @@ struct UsagePanel: View {
 
                 Spacer(minLength: 4)
 
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                HStack(alignment: .center, spacing: 8) {
                     if AppIdentity.isDevBuild {
                         Text("DEV")
                             .font(.caption2.weight(.bold))
@@ -290,17 +353,20 @@ struct UsagePanel: View {
                 pools: store.includedPools,
                 spendSummary: store.spendSummary,
                 cycleSpend: store.cycleSpend
-            )
+            ) {
+                SparklineView(
+                    sparklineCostCents: store.snapshot.sparklineCostCents,
+                    window: store.snapshot.window,
+                    now: Date(),
+                    chartHeight: nil
+                )
+            }
 
-            SparklineView(
-                sparklineCostCents: store.snapshot.sparklineCostCents,
-                window: store.snapshot.window,
-                now: Date()
-            )
-
-            Text(updatedCaption)
-                .font(.caption)
-                .foregroundStyle(store.isStale ? Color.orange : Color.secondary)
+            if let statusCaption {
+                Text(statusCaption)
+                    .font(.caption)
+                    .foregroundStyle(store.isStale ? Color.orange : Color.secondary)
+            }
         }
     }
 
@@ -392,7 +458,8 @@ struct UsagePanel: View {
         return Text(
             "▲ \(MoneyFormat.dollars(store.snapshot.recentDollars)) · \(settings.anomalyWindowMinutes)m"
         )
-        .font(.caption.weight(.semibold).monospacedDigit())
+        .font(.subheadline.weight(.semibold).monospacedDigit())
+        .lineLimit(1)
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
         .glassEffect(.regular.tint(tint))
@@ -400,7 +467,8 @@ struct UsagePanel: View {
         .help("Spend in the last \(settings.anomalyWindowMinutes) minutes (your spike window)")
     }
 
-    private var updatedCaption: String {
+    /// Only shown when the data needs a caveat; fresh data gets no caption.
+    private var statusCaption: String? {
         if store.snapshot.fetchedAt == .distantPast {
             return "Not refreshed yet"
         }
@@ -410,8 +478,7 @@ struct UsagePanel: View {
         if store.isStale {
             return "Data from \(RelativeTimeFormat.clockTime(store.snapshot.fetchedAt)) (stale)"
         }
-        let relative = RelativeTimeFormat.string(from: store.snapshot.fetchedAt)
-        return "Updated \(relative) · \(store.snapshot.eventCount) events"
+        return nil
     }
 
     @ViewBuilder

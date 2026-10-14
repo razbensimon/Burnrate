@@ -4,6 +4,8 @@ struct SparklineView: View {
     let sparklineCostCents: [Double]
     let window: UsageTimeWindow
     let now: Date
+    /// Fixed chart height. Nil lets the bars fill whatever height the parent offers.
+    var chartHeight: CGFloat? = 36
 
     @State private var hoveredIndex: Int?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -76,7 +78,8 @@ struct SparklineView: View {
                         }
                 }
             }
-            .frame(height: 36)
+            .frame(height: chartHeight)
+            .frame(maxHeight: chartHeight == nil ? .infinity : nil)
             .animation(reduceMotion ? nil : .snappy, value: hoveredIndex)
 
             HStack {
