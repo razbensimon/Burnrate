@@ -135,6 +135,32 @@ private func parseCycleSpend(_ json: String) -> CycleSpend? {
     return (object as? [String: Any]).flatMap(CycleSpend.parse(json:))
 }
 
+@Test func spendSplitSharesTheTotalBetweenIncludedAndOnDemand() {
+    let split = SpendSplit(includedCents: 63489, onDemandCents: 24174)
+
+    #expect(split.totalCents == 87663)
+    #expect(abs(split.includedFraction - 0.7242) < 0.001)
+    #expect(abs(split.onDemandFraction - 0.2758) < 0.001)
+    #expect(abs(split.includedFraction + split.onDemandFraction - 1) < 0.0001)
+}
+
+@Test func spendSplitIsEmptyWithoutSpend() {
+    let split = SpendSplit(includedCents: 0, onDemandCents: 0)
+
+    #expect(split.includedFraction == 0)
+    #expect(split.onDemandFraction == 0)
+}
+
+@Test func spendSplitFillsTheBarWhenOnlyOneSideHasSpend() {
+    let included = SpendSplit(includedCents: 500, onDemandCents: 0)
+    let onDemand = SpendSplit(includedCents: 0, onDemandCents: 500)
+
+    #expect(included.includedFraction == 1)
+    #expect(included.onDemandFraction == 0)
+    #expect(onDemand.includedFraction == 0)
+    #expect(onDemand.onDemandFraction == 1)
+}
+
 @Test func includedPoolsIgnoresALimitMessageWithoutAPercent() {
     #expect(IncludedPools.percent(in: "You've hit your usage limit") == nil)
     #expect(parseUsageSummary("{}") == nil)

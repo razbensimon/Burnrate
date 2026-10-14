@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.60.1
+
+- Regroup the header into two columns: included-allowance rings on the left, and on the right a single stacked bar splitting this cycle's spend between included and on-demand, with the hourly usage chart beneath it.
+- Blue now always means covered by the plan and orange means paying: an exhausted pool turns orange to match the on-demand segment.
+- Drop the cycle-reset caption and the "Updated … ago" line; the caption only appears for offline or stale data.
+- Align the spike pill with the Community and timeline controls, and narrow the panel to 540pt.
+
 ## 0.60.0
 
 - Show Cursor models and Other models included-pool usage, plus on-demand and included spend, as gauges in the header.

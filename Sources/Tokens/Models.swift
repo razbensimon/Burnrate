@@ -237,6 +237,26 @@ struct SpendSummary: Codable, Sendable, Hashable {
     var totalCents: Double { onDemandCents + includedCents }
 }
 
+/// How a cycle's spend splits between the included allowance and on-demand.
+/// Drives the stacked spend bar: the two fractions sum to 1 when there is
+/// any spend, and are both 0 when there is none.
+struct SpendSplit: Sendable, Hashable {
+    let includedCents: Double
+    let onDemandCents: Double
+
+    var totalCents: Double { includedCents + onDemandCents }
+
+    var includedFraction: Double {
+        guard totalCents > 0 else { return 0 }
+        return min(max(includedCents / totalCents, 0), 1)
+    }
+
+    var onDemandFraction: Double {
+        guard totalCents > 0 else { return 0 }
+        return min(max(onDemandCents / totalCents, 0), 1)
+    }
+}
+
 /// Converts request units into cents, calibrated against `SpendSummary` totals.
 ///
 /// Request-based plans report no per-event dollar amount, so the only way to
