@@ -1,7 +1,6 @@
 # Sparkle packaging (maintainers)
 
-Public helpers so local `scripts/package.sh` (gitignored) can embed Sparkle
-without copying unpublished scripts.
+Public helpers `scripts/package.sh` uses to embed Sparkle.
 
 ## Tom: generate keys once
 

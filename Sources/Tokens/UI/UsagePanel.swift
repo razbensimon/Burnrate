@@ -38,6 +38,127 @@ enum CostMetric: String, CaseIterable, Identifiable {
     }
 }
 
+/// Included-pool gauges and the cycle's on-demand / included dollar totals.
+/// Pool rings fill with the percent used. Dollar rings fill relative to
+/// whichever of the two amounts is larger, and the center shows the dollars.
+private struct IncludedPoolsGauges: View {
+    /// Nil until Cursor reports the pools. The rings stay on screen either way.
+    let pools: IncludedPools?
+    /// Team spend when calibrated. Matches the cycle caption.
+    let spendSummary: SpendSummary?
+    /// usage-summary totals, used until team spend is available.
+    let cycleSpend: CycleSpend?
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 0) {
+            percentGauge("Cursor models", percent: pools?.cursorModelsPercent)
+            Spacer(minLength: 20)
+            percentGauge("Other models", percent: pools?.otherModelsPercent)
+            Spacer(minLength: 20)
+            moneyGauge(
+                "On-demand",
+                cents: onDemandCents,
+                other: includedCents,
+                tint: Color.orange
+            )
+            Spacer(minLength: 20)
+            moneyGauge(
+                "Included",
+                cents: includedCents,
+                other: onDemandCents,
+                tint: Color.accentColor
+            )
+        }
+        .frame(maxWidth: .infinity)
+        .help("Included pools, plus on-demand and included spend this billing cycle")
+    }
+
+    private var onDemandCents: Double? {
+        if let spendSummary { return spendSummary.onDemandCents }
+        return cycleSpend?.onDemandCents
+    }
+
+    private var includedCents: Double? {
+        if let spendSummary { return spendSummary.includedCents }
+        return cycleSpend?.includedCents
+    }
+
+    private func percentGauge(_ title: String, percent: Double?) -> some View {
+        let shown = percent.map(IncludedPools.displayPercent)
+        let value = min(max(percent ?? 0, 0), 100) / 100
+        return ring(
+            title: title,
+            center: shown.map { "\($0)%" } ?? "—",
+            fill: percent == nil ? 0 : value,
+            tint: percentTint(percent),
+            accessibility: shown.map { "\(title), \($0) percent used" } ?? "\(title), not loaded"
+        )
+    }
+
+    private func moneyGauge(
+        _ title: String,
+        cents: Double?,
+        other: Double?,
+        tint: Color
+    ) -> some View {
+        let center = cents.map { MoneyFormat.dollars($0 / 100) } ?? "—"
+        return ring(
+            title: title,
+            center: center,
+            fill: moneyFill(cents: cents, other: other),
+            tint: cents == nil ? Color.secondary.opacity(0.45) : tint,
+            accessibility: cents.map { "\(title), \(MoneyFormat.dollars($0 / 100))" } ?? "\(title), not loaded"
+        )
+    }
+
+    /// The larger of the two dollar amounts fills its ring. The smaller one
+    /// fills in proportion, so the rings compare the two totals.
+    private func moneyFill(cents: Double?, other: Double?) -> Double {
+        guard let cents, cents > 0 else { return 0 }
+        let peak = max(cents, other ?? 0)
+        guard peak > 0 else { return 0 }
+        return min(cents / peak, 1)
+    }
+
+    private func ring(
+        title: String,
+        center: String,
+        fill: Double,
+        tint: Color,
+        accessibility: String
+    ) -> some View {
+        VStack(spacing: 8) {
+            ZStack {
+                Circle()
+                    .stroke(Color.secondary.opacity(0.25), lineWidth: 9)
+                Circle()
+                    .trim(from: 0, to: min(max(fill, 0), 1))
+                    .stroke(tint, style: StrokeStyle(lineWidth: 9, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                Text(center)
+                    .font(.title3.weight(.semibold).monospacedDigit())
+                    .minimumScaleFactor(0.5)
+                    .lineLimit(1)
+                    .padding(.horizontal, 12)
+            }
+            .frame(width: 108, height: 108)
+
+            Text(title)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibility)
+    }
+
+    private func percentTint(_ percent: Double?) -> Color {
+        guard let percent else { return Color.secondary.opacity(0.45) }
+        return percent >= 100 ? Color.orange : Color.accentColor
+    }
+}
+
 struct UsagePanel: View {
     @Bindable var store: UsageStore
     @Bindable var settings: SettingsStore
@@ -73,21 +194,23 @@ struct UsagePanel: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if !store.hasCompletedFetch, store.isLoading {
-                UsageSkeletonView()
-            } else {
-                header
-                    .padding(.horizontal, 16)
-                    .padding(.top, 14)
-                    .padding(.bottom, 10)
+            header
+                .padding(.horizontal, 16)
+                .padding(.top, 14)
+                .padding(.bottom, 10)
 
-                content
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-                footer
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
+            Group {
+                if !store.hasCompletedFetch, store.isLoading {
+                    UsageSkeletonView()
+                } else {
+                    content
+                }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            footer
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
         }
         .onDisappear {
             sessionPath = []
@@ -109,7 +232,7 @@ struct UsagePanel: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                HStack(alignment: .center, spacing: 8) {
                     Text(MoneyFormat.dollars(store.snapshot.windowDollars))
                         .font(.system(size: 34, weight: .semibold, design: .rounded))
                         .monospacedDigit()
@@ -128,6 +251,10 @@ struct UsagePanel: View {
                             }
                         }
                         .accessibilityHidden(!store.isLoading)
+
+                    if store.snapshot.recentDollars > 0 {
+                        burnPill
+                    }
                 }
                 .layoutPriority(1)
 
@@ -159,15 +286,11 @@ struct UsagePanel: View {
                 customRangeButton
             }
 
-            if let spend = store.spendSummary {
-                Text(billingCycleCaption(spend))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            if store.snapshot.recentDollars > 0 {
-                burnPill
-            }
+            IncludedPoolsGauges(
+                pools: store.includedPools,
+                spendSummary: store.spendSummary,
+                cycleSpend: store.cycleSpend
+            )
 
             SparklineView(
                 sparklineCostCents: store.snapshot.sparklineCostCents,
@@ -181,13 +304,6 @@ struct UsagePanel: View {
         }
     }
 
-    /// Cursor's own cycle totals, which are exact where the per-event figures are apportioned.
-    private func billingCycleCaption(_ spend: SpendSummary) -> String {
-        let onDemand = MoneyFormat.dollars(spend.onDemandCents / 100)
-        let included = MoneyFormat.dollars(spend.includedCents / 100)
-        return "This cycle: \(onDemand) on-demand · \(included) included"
-    }
-
     private var communityButton: some View {
         Button {
             onOpenCommunity()
@@ -196,6 +312,8 @@ struct UsagePanel: View {
             Label("Community", systemImage: "trophy.fill")
                 .labelStyle(.titleAndIcon)
                 .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
         }

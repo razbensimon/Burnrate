@@ -33,12 +33,23 @@ chats, and whether you're in the middle of a spike.
 
 ## Install
 
-Download the latest `Burnrate-*.zip` from
-[Releases](https://github.com/tomyweiss/Burnrate/releases), unzip, and move
-`Burnrate.app` to `/Applications`.
+Latest release, no Xcode. This downloads the current `Burnrate-*.zip` from
+[Releases](https://github.com/tomyweiss/Burnrate/releases), installs
+`Burnrate.app` to `/Applications`, and opens it:
 
-Or build from source (requires local maintainer `scripts/` — not shipped in the
-public repo):
+```bash
+curl -fsSL https://api.github.com/repos/tomyweiss/Burnrate/releases/latest \
+  | grep -o 'https://github.com/tomyweiss/Burnrate/releases/download/[^"]*Burnrate-[^"]*\.zip' \
+  | head -1 \
+  | xargs curl -fL -o Burnrate.zip
+unzip -o Burnrate.zip
+rm -rf /Applications/Burnrate.app
+mv Burnrate.app /Applications/
+open /Applications/Burnrate.app
+```
+
+Or build from a clone of `main`. This compiles a release binary, installs
+`Burnrate.app` to `/Applications`, and launches it:
 
 ```bash
 git clone https://github.com/tomyweiss/Burnrate.git
@@ -46,7 +57,12 @@ cd Burnrate
 bash scripts/package.sh --install --open
 ```
 
-This builds a release binary, installs `Burnrate.app` to `/Applications`, and launches it.
+Side-by-side contributor build. This installs `Burnrate-dev.app` and does not
+replace `/Applications/Burnrate.app`:
+
+```bash
+bash scripts/package.sh --dev --install --open
+```
 
 > [!NOTE]
 > **First launch:** the app isn't Apple-notarized. If Gatekeeper blocks it,
@@ -189,9 +205,6 @@ Package layout: Swift package target `Tokens` (internal name), shipped as **Burn
 
 <details>
 <summary><strong>Cutting a release (maintainers)</strong></summary>
-
-Maintainer packaging/release helpers live in a local `scripts/` directory (not
-in the public repo). Keep your own copy beside the checkout.
 
 Requires Tom's Sparkle EdDSA private key in Keychain (`generate_keys`).
 `scripts/package.sh --release` should run Sparkle `sign_update` /

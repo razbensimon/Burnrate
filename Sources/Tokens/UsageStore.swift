@@ -16,6 +16,11 @@ final class UsageStore {
     private(set) var communityDailySkills: [String: [CommunitySkillSpend]] = [:]
 
     private(set) var spendSummary: SpendSummary?
+    /// Cursor Models and Other Models included-pool usage for this billing cycle.
+    private(set) var includedPools: IncludedPools?
+    /// On-demand and included cents from usage-summary, used when team spend
+    /// has not been calibrated yet.
+    private(set) var cycleSpend: CycleSpend?
 
     private let api = CursorAPI()
     private let anomalyMonitor: AnomalyMonitor?
@@ -166,6 +171,9 @@ final class UsageStore {
             )
             isLoading = false
 
+            await refreshIncludedPools(credentials: credentials)
+            guard generation == refreshGeneration else { return }
+
             await refreshSpendCalibrationIfNeeded(
                 credentials: credentials,
                 now: now,
@@ -260,6 +268,19 @@ final class UsageStore {
             return
         }
         notificationFeedback = await anomalyMonitor.sendTestNotification(settings: settings)
+    }
+
+    /// Pool percentages are a single small request, so they refresh with usage
+    /// rather than on the spend-calibration interval. A failed request keeps
+    /// the last bars; a successful unlimited or empty payload clears them.
+    private func refreshIncludedPools(credentials: SessionCredentials) async {
+        do {
+            let cycle = try await api.fetchUsageCycle(credentials: credentials)
+            includedPools = cycle.pools
+            cycleSpend = cycle.spend
+        } catch {
+            FailureReporter.report(error: error, source: .usage)
+        }
     }
 
     /// Prices request units in dollars for plans where Cursor reports no per-event cost.

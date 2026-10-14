@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.59
+
+- Show Cursor models and Other models included-pool usage, plus on-demand and included spend, as gauges in the header.
+- Widen the panel so the Community button stays on one line.
+- Document installing from the latest GitHub release zip or by building from source.
+
 ## 0.0.58
 
 - Add a frosted panel background so the menu bar window stays readable on busy wallpapers. (04e3e3b)

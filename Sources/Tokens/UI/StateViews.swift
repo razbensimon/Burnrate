@@ -45,13 +45,6 @@ struct ErrorBanner: View {
 struct UsageSkeletonView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("$—.——")
-                .font(.system(size: 34, weight: .semibold, design: .rounded))
-                .foregroundStyle(.tertiary)
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(.quaternary)
-                .frame(height: 36)
-                .redacted(reason: .placeholder)
             ForEach(0..<4, id: \.self) { _ in
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .fill(.quaternary)
@@ -61,5 +54,6 @@ struct UsageSkeletonView: View {
             Spacer()
         }
         .padding(16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 }

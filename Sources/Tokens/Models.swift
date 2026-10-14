@@ -97,6 +97,135 @@ enum BillingKind: Sendable, Hashable {
     var isBillable: Bool { self != .errored }
 }
 
+/// How much of each included usage pool the plan has used this billing cycle.
+///
+/// Cursor reports these as percentages, not dollars. `used` / `limit` on the
+/// same payload are one combined allowance and do not match the two bars.
+struct IncludedPools: Sendable, Hashable {
+    /// Cursor Models pool (Grok, Composer), from `autoPercentUsed`.
+    let cursorModelsPercent: Double
+    /// Other Models pool (third-party models), from `apiPercentUsed`.
+    let otherModelsPercent: Double
+
+    static func displayPercent(_ percent: Double) -> Int {
+        Int(percent.rounded())
+    }
+
+    /// Parses `GET /api/usage-summary`. Nil for unlimited plans and for
+    /// payloads that don't name both pools.
+    static func parse(json: [String: Any]) -> IncludedPools? {
+        if (json["isUnlimited"] as? Bool) == true {
+            return nil
+        }
+
+        if let individual = dictionary(json["individualUsage"]),
+           let plan = dictionary(individual["plan"]),
+           let pools = pools(fromPlan: plan) {
+            return pools
+        }
+
+        guard let cursor = percent(in: json["autoModelSelectedDisplayMessage"] as? String),
+              let other = percent(in: json["namedModelSelectedDisplayMessage"] as? String)
+        else {
+            return nil
+        }
+        return IncludedPools(cursorModelsPercent: cursor, otherModelsPercent: other)
+    }
+
+    /// A present plan object is the individual-account shape. A missing
+    /// percentage is proto3 omitting zero, not a missing pool.
+    private static func pools(fromPlan plan: [String: Any]) -> IncludedPools? {
+        let hasAuto = isPresent(plan["autoPercentUsed"])
+        let hasApi = isPresent(plan["apiPercentUsed"])
+        let hasAllowance = isPresent(plan["enabled"]) || isPresent(plan["limit"]) || isPresent(plan["used"])
+        guard hasAuto || hasApi || hasAllowance else { return nil }
+
+        if hasAuto, finitePercent(plan["autoPercentUsed"]) == nil { return nil }
+        if hasApi, finitePercent(plan["apiPercentUsed"]) == nil { return nil }
+
+        return IncludedPools(
+            cursorModelsPercent: finitePercent(plan["autoPercentUsed"]) ?? 0,
+            otherModelsPercent: finitePercent(plan["apiPercentUsed"]) ?? 0
+        )
+    }
+
+    private static func dictionary(_ value: Any?) -> [String: Any]? {
+        value as? [String: Any]
+    }
+
+    private static func isPresent(_ value: Any?) -> Bool {
+        guard let value, !(value is NSNull) else { return false }
+        return true
+    }
+
+    private static func finitePercent(_ value: Any?) -> Double? {
+        guard let number = value as? NSNumber else { return nil }
+        let double = number.doubleValue
+        guard double.isFinite, double >= 0 else { return nil }
+        return double
+    }
+
+    /// Pulls `98` or `98.5` out of `"You've used 98% of your included total usage"`.
+    static func percent(in message: String?) -> Double? {
+        guard let message, let pctIndex = message.firstIndex(of: "%") else { return nil }
+        let before = message[..<pctIndex]
+        let start = before.lastIndex(where: { !$0.isNumber && $0 != "." })
+            .map { before.index(after: $0) } ?? before.startIndex
+        guard let value = Double(before[start...]), value.isFinite, value >= 0 else { return nil }
+        return value
+    }
+}
+
+/// On-demand and included dollar totals for the current billing cycle, in cents.
+///
+/// Parsed from `GET /api/usage-summary`. Team spend (`SpendSummary`) is preferred
+/// in the UI when Cursor has returned it, because that is the cycle caption.
+struct CycleSpend: Sendable, Hashable {
+    let onDemandCents: Double
+    let includedCents: Double
+
+    /// Individual on-demand spend, then the team pool. Included spend is
+    /// `plan.breakdown.total` (included allowance plus bonus).
+    static func parse(json: [String: Any]) -> CycleSpend? {
+        let individual = dictionary(json["individualUsage"])
+        let team = dictionary(json["teamUsage"])
+        let onDemand = onDemandCents(in: individual.flatMap { dictionary($0["onDemand"]) })
+            ?? onDemandCents(in: team.flatMap { dictionary($0["onDemand"]) })
+        let included = includedCents(in: individual.flatMap { dictionary($0["plan"]) })
+        guard onDemand != nil || included != nil else { return nil }
+        return CycleSpend(onDemandCents: onDemand ?? 0, includedCents: included ?? 0)
+    }
+
+    private static func onDemandCents(in onDemand: [String: Any]?) -> Double? {
+        guard let onDemand else { return nil }
+        return finiteCents(onDemand["used"])
+    }
+
+    private static func includedCents(in plan: [String: Any]?) -> Double? {
+        guard let plan else { return nil }
+        if let breakdown = dictionary(plan["breakdown"]) {
+            if let total = finiteCents(breakdown["total"]) { return total }
+            let included = finiteCents(breakdown["included"]) ?? 0
+            let bonus = finiteCents(breakdown["bonus"]) ?? 0
+            if finiteCents(breakdown["included"]) != nil || finiteCents(breakdown["bonus"]) != nil {
+                return included + bonus
+            }
+        }
+        return nil
+    }
+
+    private static func dictionary(_ value: Any?) -> [String: Any]? {
+        value as? [String: Any]
+    }
+
+    private static func finiteCents(_ value: Any?) -> Double? {
+        guard let number = value as? NSNumber else { return nil }
+        let double = number.doubleValue
+        guard double.isFinite, double >= 0 else { return nil }
+        return double
+    }
+}
+
 /// Billing-cycle spend totals for the signed-in user, straight from Cursor.
 struct SpendSummary: Codable, Sendable, Hashable {
     /// On-demand spend beyond the included allowance, in cents.
