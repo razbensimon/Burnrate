@@ -37,8 +37,7 @@ Download the latest `Burnrate-*.zip` from
 [Releases](https://github.com/tomyweiss/Burnrate/releases), unzip, and move
 `Burnrate.app` to `/Applications`.
 
-Or build from source (requires local maintainer `scripts/` — not shipped in the
-public repo):
+Or build from source:
 
 ```bash
 git clone https://github.com/tomyweiss/Burnrate.git
@@ -189,9 +188,6 @@ Package layout: Swift package target `Tokens` (internal name), shipped as **Burn
 
 <details>
 <summary><strong>Cutting a release (maintainers)</strong></summary>
-
-Maintainer packaging/release helpers live in a local `scripts/` directory (not
-in the public repo). Keep your own copy beside the checkout.
 
 Requires Tom's Sparkle EdDSA private key in Keychain (`generate_keys`).
 `scripts/package.sh --release` should run Sparkle `sign_update` /
