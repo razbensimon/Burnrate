@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.60.2
+
+- Number tied community leaderboard rows in order, so two people with the same spend get consecutive places.
+
 ## 0.60.1
 
 - Regroup the header into two columns: included-allowance rings on the left, and on the right a single stacked bar splitting this cycle's spend between included and on-demand, with the hourly usage chart beneath it.

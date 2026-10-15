@@ -286,7 +286,10 @@ struct CommunityView: View {
             ScrollView(.vertical, showsIndicators: true) {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(rank.leaderboardNear.indices, id: \.self) { index in
-                        leaderboardRow(rank.leaderboardNear[index])
+                        leaderboardRow(
+                            rank.leaderboardNear[index],
+                            place: Self.displayPlace(rank.leaderboardNear, index: index)
+                        )
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -296,14 +299,28 @@ struct CommunityView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    private func leaderboardRow(_ entry: CommunityLeaderboardEntry) -> some View {
+    /// Tied API ranks share a number (10, 10). Show the next row as the following place (10, 11).
+    private static func displayPlace(_ entries: [CommunityLeaderboardEntry], index: Int) -> Int {
+        var place = entries[0].rank
+        guard index > 0 else { return place }
+        for cursor in 1...index {
+            if entries[cursor].rank == entries[cursor - 1].rank {
+                place += 1
+            } else {
+                place = entries[cursor].rank
+            }
+        }
+        return place
+    }
+
+    private func leaderboardRow(_ entry: CommunityLeaderboardEntry, place: Int) -> some View {
         let name = entry.nickname?.trimmingCharacters(in: .whitespacesAndNewlines)
         let displayName = (name?.isEmpty == false) ? name! : "Anonymous"
         let modelLabel = CommunityModelLabel.leaderboard(entry.topModel)
         let versionLabel = entry.clientVersion?.trimmingCharacters(in: .whitespacesAndNewlines)
 
         return HStack(spacing: 8) {
-            Text("\(entry.rank) · \(displayName) · \(MoneyFormat.dollars(Double(entry.spendCents) / 100))")
+            Text("\(place) · \(displayName) · \(MoneyFormat.dollars(Double(entry.spendCents) / 100))")
                 .font(.subheadline)
                 .foregroundStyle(entry.isYou ? .primary : .secondary)
                 .lineLimit(1)
