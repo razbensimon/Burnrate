@@ -56,31 +56,28 @@ struct SettingsPanel: View {
                         .onChange(of: settings.launchAtLogin) { _, _ in
                             MenuBarPanelKeeper.keepOpen()
                         }
+                }
+
+                Section("Status bar") {
                     Toggle("Hide amount in menu bar", isOn: $settings.hideAmountInMenuBar)
                         .onChange(of: settings.hideAmountInMenuBar) { _, _ in
                             MenuBarPanelKeeper.keepOpen()
                         }
+                }
+
+                Section("Privacy") {
                     Toggle("Blur session & prompt titles", isOn: $settings.blurSensitiveContent)
                         .onChange(of: settings.blurSensitiveContent) { _, _ in
                             MenuBarPanelKeeper.keepOpen()
                         }
-                    Text("Soft-blurs chat titles and prompt text for screen recordings. Costs and models stay visible.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                     Toggle("Show location subtitle", isOn: $settings.showLocationSubtitle)
                         .onChange(of: settings.showLocationSubtitle) { _, _ in
                             MenuBarPanelKeeper.keepOpen()
                         }
-                    Text("Extra row under each session: workspace, or repo · branch for cloud agents.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                     Toggle("Hide archived sessions", isOn: $settings.hideArchivedSessions)
                         .onChange(of: settings.hideArchivedSessions) { _, _ in
                             MenuBarPanelKeeper.keepOpen()
                         }
-                    Text("Hide sessions Cursor has archived. Spend totals are unchanged.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                 }
 
                 Section("Usage panel") {
@@ -197,10 +194,6 @@ struct SettingsPanel: View {
                             Task { await store.refresh() }
                             MenuBarPanelKeeper.keepOpen()
                         }
-
-                        Text("Spend is counted from this day of each month.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
                     }
                 }
 
