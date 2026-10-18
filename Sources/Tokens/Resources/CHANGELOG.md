@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.60.3
+
+- Status bar and header can show any mix of window spend, Cursor models percent, and Other models percent. Both percents use C and O labels. All off leaves the flame alone.
+- Settings grouped into sections; redundant captions removed.
+- Event cache no longer treats a range that starts before the cache as covered.
+- Keychain membership migration clears the leftover UserDefaults secret.
+
 ## 0.60.2
 
 - Number tied community leaderboard rows in order, so two people with the same spend get consecutive places.
