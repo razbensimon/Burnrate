@@ -12,6 +12,7 @@ community-api/
 
 # Local agent design/plan notes (not shared via repo)
 docs/superpowers/**
+.worktrees/
 !docs/superpowers/specs/
 !docs/superpowers/specs/**
 .superpowers/

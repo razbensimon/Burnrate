@@ -10,10 +10,11 @@ struct EventWindowCache: Sendable, Equatable {
 
     /// True when this cache already contains every event needed for `startMs...endMs`.
     /// End is allowed to lag by `endSlackMs` so a fetch from a few minutes ago
-    /// can still satisfy a window that ends at `now`.
+    /// can still satisfy a window that ends at `now`. The start cannot lag:
+    /// events before `self.startMs` are not in the cache.
     func covers(startMs: Double, endMs: Double, endSlackMs: Double = 5 * 60_000) -> Bool {
         guard !events.isEmpty else { return false }
-        return self.startMs <= startMs + 60_000 && self.endMs >= endMs - endSlackMs
+        return self.startMs <= startMs && self.endMs >= endMs - endSlackMs
     }
 }
 

@@ -14,14 +14,14 @@ No Dock icon. Auth comes from the local Cursor IDE login.
 
 ### Menu bar
 
-- Flame SF Symbol + window total (optional: hide amount)
+- Flame SF Symbol + the figures chosen in Settings (window spend, Cursor models %, Other models %). All off hides the text.
 - `flame.fill` when recent-window spend ≥ spike threshold
 - Warning triangle on error while keeping the last known amount
 - Polls on a timer (default 60s; 15s–10m presets)
 
 ### Usage panel (460×580)
 
-- **Hero** window total with numeric transitions
+- **Hero** matches the status-bar figures. A percent-only choice keeps the timeline dollar total smaller underneath.
 - **Timeline picker** — Today, Last 24h, Last 7d, This billing
 - **Burn pill** (glass) for rolling-window spend, tinted by severity
 - **Sparkline** for the active window (hourly or daily buckets)
@@ -62,7 +62,7 @@ No Dock icon. Auth comes from the local Cursor IDE login.
 - Timezone picker (System or searchable IANA list)
 - Poll interval picker
 - Native steppers for spike rules
-- Launch at login, hide menu-bar amount
+- Launch at login, status-bar figures (window spend, Cursor models, Other models)
 - About + dashboard link
 
 ### Auth & data
@@ -105,7 +105,7 @@ No Dock icon. Auth comes from the local Cursor IDE login.
 | Anomaly threshold | $10 |
 | Anomaly window | 10 minutes |
 | Alert cooldown | 15 minutes |
-| Hide menu-bar amount | off |
+| Status bar figures | Window spend on; both percents off |
 | Launch at login | off unless already enabled |
 
 ## License

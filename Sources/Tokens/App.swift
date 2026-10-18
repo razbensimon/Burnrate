@@ -97,6 +97,7 @@ struct TokensApp: App {
                 if let amount = store.menuAmountText {
                     Text(amount)
                         .monospacedDigit()
+                        .accessibilityLabel(store.menuAmountAccessibilityText ?? amount)
                 }
             } icon: {
                 Image(nsImage: store.menuBarIcon)

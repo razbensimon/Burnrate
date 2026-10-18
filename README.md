@@ -92,15 +92,20 @@ Verify it can reach your usage data:
 
 | You see | It means |
 |---------|----------|
-| Flame + `$12.40` | Spend for your selected window; click for the panel |
+| Flame + `$12.40` | Window spend for the selected timeline |
+| Flame + `72%` | Included-pool percent for Cursor models or Other models, whichever toggle is on |
+| Flame + `$12.40 · C 72% · O 45%` | Any combination of those three. `C` is Cursor models and `O` is Other models; the letters appear only when both percents are on |
+| Flame alone | All three status-bar toggles are off |
 | Filled flame | Recent-window spend ≥ your spike threshold |
 | Warning triangle | Auth or API problem (last known amount still shown when possible) |
 
 ### The panel
 
-The header shows the window total, a **burn pill** with spend in your rolling
-alert window (e.g. last 10 minutes), and an hourly/daily **sparkline** for the
-shape of spend across the active window. A timeline picker switches between
+The header shows the same figures you chose for the status bar (window spend
+and/or included-pool percents); when only percents are on, window spend appears
+on the line below. A **burn pill** shows spend in your rolling alert window
+(e.g. last 10 minutes), and an hourly/daily **sparkline** shows the shape of
+spend across the active window. A timeline picker switches between
 **Today**, **Last 24h**, **Last 7d**, and **This billing** (configurable
 billing day and timezone).
 
@@ -118,7 +123,7 @@ Below that, six tabs slice the same window:
 ### Settings
 
 Timeline window, billing day, timezone, poll interval, spike threshold /
-window / cooldown, launch at login, hide the menu bar amount, blur sensitive
+window / cooldown, launch at login, which status-bar figures to show (window spend, Cursor models percent, Other models percent), blur sensitive
 content (for demos and screen shares), test notification, and updates.
 
 ## How it works

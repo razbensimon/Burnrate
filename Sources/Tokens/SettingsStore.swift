@@ -11,6 +11,9 @@ final class SettingsStore {
         static let anomalyWindowMinutes = "anomalyWindowMinutes"
         static let anomalyCooldownMinutes = "anomalyCooldownMinutes"
         static let hideAmountInMenuBar = "hideAmountInMenuBar"
+        static let statusBarShowsWindowSpend = "statusBarShowsWindowSpend"
+        static let statusBarShowsCursorModels = "statusBarShowsCursorModels"
+        static let statusBarShowsOtherModels = "statusBarShowsOtherModels"
         static let autoCheckForUpdates = "autoCheckForUpdates"
         static let usageTimelinePreset = "usageTimelinePreset"
         static let billingDayOfMonth = "billingDayOfMonth"
@@ -82,8 +85,21 @@ final class SettingsStore {
         }
     }
 
+    var statusBarShowsWindowSpend: Bool {
+        didSet { defaults.set(statusBarShowsWindowSpend, forKey: Keys.statusBarShowsWindowSpend) }
+    }
+
+    var statusBarShowsCursorModels: Bool {
+        didSet { defaults.set(statusBarShowsCursorModels, forKey: Keys.statusBarShowsCursorModels) }
+    }
+
+    var statusBarShowsOtherModels: Bool {
+        didSet { defaults.set(statusBarShowsOtherModels, forKey: Keys.statusBarShowsOtherModels) }
+    }
+
+    /// True when the status bar shows no figures. Replaces the old hide-amount toggle.
     var hideAmountInMenuBar: Bool {
-        didSet { defaults.set(hideAmountInMenuBar, forKey: Keys.hideAmountInMenuBar) }
+        !statusBarShowsWindowSpend && !statusBarShowsCursorModels && !statusBarShowsOtherModels
     }
 
     var showLocationSubtitle: Bool {
@@ -365,6 +381,31 @@ final class SettingsStore {
         defaults.removeObject(forKey: Keys.communityNicknameMigratedToCursorDefault)
     }
 
+    /// One-time move from the hide-amount bool to the three status-bar toggles.
+    /// Existing new keys win, including a partial set. `didSet` does not run
+    /// during init, so the first migration writes the keys itself.
+    private static func migratedStatusBarFigures(_ defaults: UserDefaults) -> (spend: Bool, cursor: Bool, other: Bool) {
+        let spendKey = Keys.statusBarShowsWindowSpend
+        let cursorKey = Keys.statusBarShowsCursorModels
+        let otherKey = Keys.statusBarShowsOtherModels
+        let hasNewKeys = defaults.object(forKey: spendKey) != nil
+            || defaults.object(forKey: cursorKey) != nil
+            || defaults.object(forKey: otherKey) != nil
+        if hasNewKeys {
+            return (
+                defaults.bool(forKey: spendKey),
+                defaults.bool(forKey: cursorKey),
+                defaults.bool(forKey: otherKey)
+            )
+        }
+        let hidden = defaults.bool(forKey: Keys.hideAmountInMenuBar)
+        let migrated = (spend: !hidden, cursor: false, other: false)
+        defaults.set(migrated.spend, forKey: spendKey)
+        defaults.set(migrated.cursor, forKey: cursorKey)
+        defaults.set(migrated.other, forKey: otherKey)
+        return migrated
+    }
+
     private let defaults: UserDefaults
     /// Release builds keep the membership secret in Keychain. Burnrate-dev and other
     /// ad-hoc/local builds use UserDefaults so rebuilds do not break community auth.
@@ -389,7 +430,10 @@ final class SettingsStore {
         let cooldown = defaults.object(forKey: Keys.anomalyCooldownMinutes) as? Int
         anomalyCooldownMinutes = cooldown ?? 15
 
-        hideAmountInMenuBar = defaults.bool(forKey: Keys.hideAmountInMenuBar)
+        let statusBar = Self.migratedStatusBarFigures(defaults)
+        statusBarShowsWindowSpend = statusBar.spend
+        statusBarShowsCursorModels = statusBar.cursor
+        statusBarShowsOtherModels = statusBar.other
         showLocationSubtitle = defaults.bool(forKey: Keys.showLocationSubtitle)
         hideArchivedSessions = defaults.bool(forKey: Keys.hideArchivedSessions)
         blurSensitiveContent = defaults.bool(forKey: Keys.blurSensitiveContent)
@@ -498,6 +542,7 @@ final class SettingsStore {
     ) -> String? {
         if persistInKeychain {
             if let fromKeychain = readMembershipSecretFromKeychain(account: keychainAccount) {
+                defaults.removeObject(forKey: legacyDefaultsKey)
                 return fromKeychain
             }
             if let legacy = defaults.string(forKey: legacyDefaultsKey) {

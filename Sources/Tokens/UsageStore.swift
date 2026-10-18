@@ -74,12 +74,24 @@ final class UsageStore {
         return burnLevel.menuBarImage()
     }
 
+    var statusBarInput: StatusBarFigures.Input {
+        StatusBarFigures.Input(
+            showsWindowSpend: settings.statusBarShowsWindowSpend,
+            showsCursorModels: settings.statusBarShowsCursorModels,
+            showsOtherModels: settings.statusBarShowsOtherModels,
+            windowDollars: snapshot.windowDollars,
+            spendIsPlaceholder: !hasCompletedFetch && lastError == nil,
+            cursorModelsPercent: includedPools?.cursorModelsPercent,
+            otherModelsPercent: includedPools?.otherModelsPercent
+        )
+    }
+
     var menuAmountText: String? {
-        if settings.hideAmountInMenuBar { return nil }
-        if !hasCompletedFetch, lastError == nil {
-            return "$—.——"
-        }
-        return MoneyFormat.dollars(snapshot.windowDollars)
+        StatusBarFigures.statusText(statusBarInput)
+    }
+
+    var menuAmountAccessibilityText: String? {
+        StatusBarFigures.accessibilityLabel(statusBarInput)
     }
 
     func start() {
