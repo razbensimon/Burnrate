@@ -59,10 +59,21 @@ struct SettingsPanel: View {
                 }
 
                 Section("Status bar") {
-                    Toggle("Hide amount in menu bar", isOn: $settings.hideAmountInMenuBar)
-                        .onChange(of: settings.hideAmountInMenuBar) { _, _ in
+                    Toggle("Window spend", isOn: $settings.statusBarShowsWindowSpend)
+                        .onChange(of: settings.statusBarShowsWindowSpend) { _, _ in
                             MenuBarPanelKeeper.keepOpen()
                         }
+                    Toggle("Cursor models", isOn: $settings.statusBarShowsCursorModels)
+                        .onChange(of: settings.statusBarShowsCursorModels) { _, _ in
+                            MenuBarPanelKeeper.keepOpen()
+                        }
+                    Toggle("Other models", isOn: $settings.statusBarShowsOtherModels)
+                        .onChange(of: settings.statusBarShowsOtherModels) { _, _ in
+                            MenuBarPanelKeeper.keepOpen()
+                        }
+                    Text("Choose what appears next to the flame. The panel header shows those figures. Turning all three off leaves the flame alone while the panel still shows window spend.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
 
                 Section("Privacy") {

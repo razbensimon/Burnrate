@@ -292,31 +292,65 @@ struct UsagePanel: View {
         MenuBarPanelKeeper.keepOpen()
     }
 
+    private var headerFigures: StatusBarFigures.Header {
+        StatusBarFigures.header(store.statusBarInput)
+    }
+
     private var header: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .center, spacing: 8) {
-                HStack(alignment: .center, spacing: 8) {
-                    Text(MoneyFormat.dollars(store.snapshot.windowDollars))
-                        .font(.system(size: 34, weight: .semibold, design: .rounded))
-                        .monospacedDigit()
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.65)
-                        .contentTransition(reduceMotion ? .identity : .numericText())
-                        .animation(reduceMotion ? nil : .snappy, value: store.snapshot.windowCostCents)
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(alignment: .center, spacing: 8) {
+                        Text(headerFigures.hero)
+                            .font(.system(size: 34, weight: .semibold, design: .rounded))
+                            .monospacedDigit()
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.65)
+                            .contentTransition(reduceMotion ? .identity : .numericText())
+                            .animation(reduceMotion ? nil : .snappy, value: headerFigures.hero)
 
-                    // Spinner beside the amount; fixed slot avoids layout shift while refreshing.
-                    Color.clear
-                        .frame(width: 16, height: 16)
-                        .overlay {
-                            if store.isLoading {
-                                ProgressView()
-                                    .controlSize(.small)
+                        Color.clear
+                            .frame(width: 16, height: 16)
+                            .overlay {
+                                if store.isLoading {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                }
+                            }
+                            .accessibilityHidden(!store.isLoading)
+
+                        if !headerFigures.showsTimelineSpendBelow, store.snapshot.recentDollars > 0 {
+                            burnPill
+                        }
+
+                        if !headerFigures.companions.isEmpty {
+                            Text(headerFigures.companions.joined(separator: " · "))
+                                .font(.title3.weight(.semibold))
+                                .monospacedDigit()
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.65)
+                        }
+                    }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(headerFigures.accessibilityLabel)
+
+                    if let caption = headerFigures.caption {
+                        Text(caption)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    if headerFigures.showsTimelineSpendBelow {
+                        HStack(alignment: .center, spacing: 8) {
+                            Text(headerFigures.timelineSpend)
+                                .font(.title3.weight(.semibold))
+                                .monospacedDigit()
+                                .lineLimit(1)
+                                .accessibilityLabel("Window spend \(headerFigures.timelineSpend)")
+                            if store.snapshot.recentDollars > 0 {
+                                burnPill
                             }
                         }
-                        .accessibilityHidden(!store.isLoading)
-
-                    if store.snapshot.recentDollars > 0 {
-                        burnPill
                     }
                 }
                 .layoutPriority(1)
