@@ -308,6 +308,8 @@ struct UsagePanel: View {
                             .minimumScaleFactor(0.65)
                             .contentTransition(reduceMotion ? .identity : .numericText())
                             .animation(reduceMotion ? nil : .snappy, value: headerFigures.hero)
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel(headerFigures.accessibilityLabel)
 
                         Color.clear
                             .frame(width: 16, height: 16)
@@ -329,10 +331,9 @@ struct UsagePanel: View {
                                 .monospacedDigit()
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.65)
+                                .accessibilityHidden(true)
                         }
                     }
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(headerFigures.accessibilityLabel)
 
                     if let caption = headerFigures.caption {
                         Text(caption)

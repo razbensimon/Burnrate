@@ -101,9 +101,11 @@ Verify it can reach your usage data:
 
 ### The panel
 
-The header shows the window total, a **burn pill** with spend in your rolling
-alert window (e.g. last 10 minutes), and an hourly/daily **sparkline** for the
-shape of spend across the active window. A timeline picker switches between
+The header shows the same figures you chose for the status bar (window spend
+and/or included-pool percents); when only percents are on, window spend appears
+on the line below. A **burn pill** shows spend in your rolling alert window
+(e.g. last 10 minutes), and an hourly/daily **sparkline** shows the shape of
+spend across the active window. A timeline picker switches between
 **Today**, **Last 24h**, **Last 7d**, and **This billing** (configurable
 billing day and timezone).
 

@@ -99,18 +99,7 @@ final class SettingsStore {
 
     /// True when the status bar shows no figures. Replaces the old hide-amount toggle.
     var hideAmountInMenuBar: Bool {
-        get {
-            !statusBarShowsWindowSpend && !statusBarShowsCursorModels && !statusBarShowsOtherModels
-        }
-        set {
-            if newValue {
-                statusBarShowsWindowSpend = false
-                statusBarShowsCursorModels = false
-                statusBarShowsOtherModels = false
-            } else if !statusBarShowsWindowSpend && !statusBarShowsCursorModels && !statusBarShowsOtherModels {
-                statusBarShowsWindowSpend = true
-            }
-        }
+        !statusBarShowsWindowSpend && !statusBarShowsCursorModels && !statusBarShowsOtherModels
     }
 
     var showLocationSubtitle: Bool {
