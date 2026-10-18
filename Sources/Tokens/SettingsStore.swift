@@ -498,6 +498,7 @@ final class SettingsStore {
     ) -> String? {
         if persistInKeychain {
             if let fromKeychain = readMembershipSecretFromKeychain(account: keychainAccount) {
+                defaults.removeObject(forKey: legacyDefaultsKey)
                 return fromKeychain
             }
             if let legacy = defaults.string(forKey: legacyDefaultsKey) {
