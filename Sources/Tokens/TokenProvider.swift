@@ -1,4 +1,5 @@
 import Foundation
+import os
 import Security
 import SQLite3
 import TokensCore
@@ -25,9 +26,12 @@ enum TokenProvider {
         ideDatabasePath: URL = databasePath,
         cliAuthFile: URL = cliAuthFilePath,
         keychainAccessToken: () -> String? = loadCLIKeychainAccessToken,
+        safeStoragePassword: () -> String? = loadCursorSafeStoragePassword,
         now: Date = Date()
     ) throws -> SessionCredentials {
-        if let token = loadIDEAccessToken(from: ideDatabasePath),
+        var sealedIDEToken = false
+        if let stored = loadIDEAccessToken(from: ideDatabasePath),
+           let token = sessionToken(fromStoredIDEValue: stored, safeStoragePassword: safeStoragePassword, sealed: &sealedIDEToken),
            !CursorAccessToken.isExpired(token, now: now),
            let credentials = credentials(fromJWT: token) {
             return credentials
@@ -45,6 +49,9 @@ enum TokenProvider {
             return credentials
         }
 
+        if sealedIDEToken {
+            throw TokensError.safeStorageLocked
+        }
         throw TokensError.tokenNotFound
     }
 
@@ -96,6 +103,60 @@ enum TokenProvider {
         }
 
         return String(cString: cString)
+    }
+
+    /// Cursor IDE tokens may be a raw JWT or a `cursor-safe-storage:v1:` envelope.
+    /// The safe-storage password is read only for envelopes, so plaintext tokens
+    /// never touch the keychain.
+    private static func sessionToken(
+        fromStoredIDEValue stored: String,
+        safeStoragePassword: () -> String?,
+        sealed: inout Bool
+    ) -> String? {
+        guard CursorSafeStorage.isSealed(stored) else { return stored }
+        guard let password = safeStoragePassword(),
+              let token = CursorSafeStorage.decrypt(stored, password: password)
+        else {
+            sealed = true
+            return nil
+        }
+        return token
+    }
+
+    /// Password for Electron safe storage. Cached for this process so usage
+    /// polling does not prompt Keychain on every refresh.
+    private static func loadCursorSafeStoragePassword() -> String? {
+        if let cached = cachedSafeStoragePassword.withLock({ $0 }) {
+            return cached
+        }
+        guard let password = copyCursorSafeStoragePassword() else { return nil }
+        cachedSafeStoragePassword.withLock { $0 = password }
+        return password
+    }
+
+    private static let cachedSafeStoragePassword = OSAllocatedUnfairLock<String?>(initialState: nil)
+
+    private static func copyCursorSafeStoragePassword() -> String? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: "Cursor Safe Storage",
+            kSecAttrAccount as String: "Cursor Key",
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+        var result: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        guard status == errSecSuccess, let data = result as? Data else {
+            return nil
+        }
+        var bytes = data
+        if bytes.last == 0 {
+            bytes.removeLast()
+        }
+        guard let password = String(data: bytes, encoding: .utf8), !password.isEmpty else {
+            return nil
+        }
+        return password
     }
 
     private static func credentials(fromJWT jwt: String) -> SessionCredentials? {
