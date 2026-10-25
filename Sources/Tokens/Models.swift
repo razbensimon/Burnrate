@@ -576,6 +576,7 @@ struct UsageSnapshot: Sendable {
 enum TokensError: Error, LocalizedError, Sendable {
     case databaseNotFound
     case tokenNotFound
+    case safeStorageLocked
     case invalidToken
     case httpStatus(Int)
     case apiMessage(String)
@@ -589,6 +590,8 @@ enum TokensError: Error, LocalizedError, Sendable {
             "Cursor database not found. Sign in to the Cursor app or run `agent login`."
         case .tokenNotFound:
             "No Cursor session found. Sign in to the Cursor app or run `agent login`, then refresh."
+        case .safeStorageLocked:
+            "Cursor's session is encrypted. Allow Burnrate to read \"Cursor Safe Storage\" in Keychain, then refresh."
         case .invalidToken:
             "Could not parse Cursor auth token."
         case .httpStatus(let code):

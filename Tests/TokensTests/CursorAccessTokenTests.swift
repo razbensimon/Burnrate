@@ -74,6 +74,111 @@ import Testing
     #expect(credentials.cookieValue == "keychain-user%3A%3A\(jwt)")
 }
 
+@Test func cursorSafeStorageDecryptsSealedIDEAccessToken() {
+    let jwt = "eyJhbGciOiJub25lIn0.eyJleHAiOjk5OTksInN1YiI6Imdvb2dsZS1vYXV0aDJ8dXNlcl9hYmMifQ.sig"
+    let envelope = "cursor-safe-storage:v1:djEwaDSijLnA7SKpCMy1v7yoVJLF2OMzfrAlzN0wA6kq49gvndDdXEv9RRtlL/a7NDLhIuD99wiCXvoIgAVYs78dUyViGCd9kGi4unkuOBcMvwTNE3wJJkX9PuV4CTKTI657"
+    #expect(CursorSafeStorage.isSealed(envelope))
+    #expect(!CursorSafeStorage.isSealed(jwt))
+    #expect(CursorSafeStorage.decrypt(envelope, password: "burnrate-test-password") == jwt)
+    #expect(CursorSafeStorage.decrypt(envelope, password: "wrong-password") == nil)
+}
+
+@Test func tokenProviderLoadsSealedIDEAccessToken() throws {
+    let jwt = "eyJhbGciOiJub25lIn0.eyJleHAiOjk5OTksInN1YiI6Imdvb2dsZS1vYXV0aDJ8dXNlcl9hYmMifQ.sig"
+    let envelope = "cursor-safe-storage:v1:djEwaDSijLnA7SKpCMy1v7yoVJLF2OMzfrAlzN0wA6kq49gvndDdXEv9RRtlL/a7NDLhIuD99wiCXvoIgAVYs78dUyViGCd9kGi4unkuOBcMvwTNE3wJJkX9PuV4CTKTI657"
+    let ideDB = FileManager.default.temporaryDirectory
+        .appendingPathComponent("ide-sealed-\(UUID().uuidString).vscdb")
+    defer { try? FileManager.default.removeItem(at: ideDB) }
+    try writeIDEAccessToken(envelope, to: ideDB)
+
+    let missingCLI = FileManager.default.temporaryDirectory
+        .appendingPathComponent("missing-cli-\(UUID().uuidString).json")
+    let credentials = try TokenProvider.loadSessionCredentials(
+        ideDatabasePath: ideDB,
+        cliAuthFile: missingCLI,
+        keychainAccessToken: { nil },
+        safeStoragePassword: { "burnrate-test-password" },
+        now: Date(timeIntervalSince1970: 5_000)
+    )
+    #expect(credentials.cookieValue == "user_abc%3A%3A\(jwt)")
+}
+
+@Test func tokenProviderDoesNotReadSafeStorageForPlaintextToken() throws {
+    let jwt = testJWT(sub: "auth0|plain", exp: 9_999)
+    let ideDB = FileManager.default.temporaryDirectory
+        .appendingPathComponent("ide-plain-\(UUID().uuidString).vscdb")
+    defer { try? FileManager.default.removeItem(at: ideDB) }
+    try writeIDEAccessToken(jwt, to: ideDB)
+
+    let missingCLI = FileManager.default.temporaryDirectory
+        .appendingPathComponent("missing-cli-\(UUID().uuidString).json")
+    var safeStorageReads = 0
+    let credentials = try TokenProvider.loadSessionCredentials(
+        ideDatabasePath: ideDB,
+        cliAuthFile: missingCLI,
+        keychainAccessToken: { nil },
+        safeStoragePassword: {
+            safeStorageReads += 1
+            return "unused"
+        },
+        now: Date(timeIntervalSince1970: 5_000)
+    )
+    #expect(safeStorageReads == 0)
+    #expect(credentials.cookieValue == "plain%3A%3A\(jwt)")
+}
+
+@Test func tokenProviderExplainsWhenSealedTokenCannotBeUnlocked() throws {
+    let envelope = "cursor-safe-storage:v1:djEwaDSijLnA7SKpCMy1v7yoVJLF2OMzfrAlzN0wA6kq49gvndDdXEv9RRtlL/a7NDLhIuD99wiCXvoIgAVYs78dUyViGCd9kGi4unkuOBcMvwTNE3wJJkX9PuV4CTKTI657"
+    let ideDB = FileManager.default.temporaryDirectory
+        .appendingPathComponent("ide-locked-\(UUID().uuidString).vscdb")
+    defer { try? FileManager.default.removeItem(at: ideDB) }
+    try writeIDEAccessToken(envelope, to: ideDB)
+
+    let missingCLI = FileManager.default.temporaryDirectory
+        .appendingPathComponent("missing-cli-\(UUID().uuidString).json")
+    do {
+        _ = try TokenProvider.loadSessionCredentials(
+            ideDatabasePath: ideDB,
+            cliAuthFile: missingCLI,
+            keychainAccessToken: { nil },
+            safeStoragePassword: { nil },
+            now: Date(timeIntervalSince1970: 5_000)
+        )
+        Issue.record("Expected a sealed session with no keychain password to fail")
+    } catch let error as TokensError {
+        guard case .safeStorageLocked = error else {
+            Issue.record("Expected safeStorageLocked, got \(String(describing: error))")
+            return
+        }
+    } catch {
+        Issue.record("Expected TokensError, got \(error)")
+    }
+}
+
+@Test func tokenProviderSkipsUndecryptableIDETokenAndUsesCLIAuthJSON() throws {
+    let envelope = "cursor-safe-storage:v1:djEwaDSijLnA7SKpCMy1v7yoVJLF2OMzfrAlzN0wA6kq49gvndDdXEv9RRtlL/a7NDLhIuD99wiCXvoIgAVYs78dUyViGCd9kGi4unkuOBcMvwTNE3wJJkX9PuV4CTKTI657"
+    let fresh = testJWT(sub: "auth0|cli-fresh", exp: 9_999)
+    let ideDB = FileManager.default.temporaryDirectory
+        .appendingPathComponent("ide-sealed-\(UUID().uuidString).vscdb")
+    defer { try? FileManager.default.removeItem(at: ideDB) }
+    try writeIDEAccessToken(envelope, to: ideDB)
+
+    let authFile = FileManager.default.temporaryDirectory
+        .appendingPathComponent("cli-auth-\(UUID().uuidString).json")
+    defer { try? FileManager.default.removeItem(at: authFile) }
+    try JSONSerialization.data(withJSONObject: ["accessToken": fresh])
+        .write(to: authFile)
+
+    let credentials = try TokenProvider.loadSessionCredentials(
+        ideDatabasePath: ideDB,
+        cliAuthFile: authFile,
+        keychainAccessToken: { nil },
+        safeStoragePassword: { "wrong-password" },
+        now: Date(timeIntervalSince1970: 5_000)
+    )
+    #expect(credentials.cookieValue == "cli-fresh%3A%3A\(fresh)")
+}
+
 @Test func tokenProviderSkipsExpiredIDETokenAndUsesCLIAuthJSON() throws {
     let expired = testJWT(sub: "auth0|stale", exp: 1_000)
     let fresh = testJWT(sub: "auth0|cli-fresh", exp: 9_999)

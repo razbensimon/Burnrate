@@ -57,7 +57,7 @@ enum FailureReporter {
     static func category(for error: Error) -> Category {
         if let tokensError = error as? TokensError {
             switch tokensError {
-            case .tokenNotFound, .invalidToken, .databaseNotFound:
+            case .tokenNotFound, .safeStorageLocked, .invalidToken, .databaseNotFound:
                 return .auth
             case .decodingFailed:
                 return .decode

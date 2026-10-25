@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.60.4
+
+- Spend loads again when Cursor keeps your login locked in the Mac keychain.
+
 ## 0.60.3
 
 - Status bar and header can show any mix of window spend, Cursor models percent, and Other models percent. Both percents use C and O labels. All off leaves the flame alone.
